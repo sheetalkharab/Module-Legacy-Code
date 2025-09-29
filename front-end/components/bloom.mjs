@@ -36,9 +36,10 @@ const createBloom = (template, bloom) => {
 
 function _formatHashtags(text) {
   if (!text) return text;
+  // special character in hashtag convert into url friendly format
   return text.replace(
-    /\B#[^#]+/g,
-    (match) => `<a href="/hashtag/${match.slice(1)}">${match}</a>`
+    /\B#(\w+)/g,
+    (match, tag) => `<a href="/hashtag/${encodeURIComponent(tag)}">${match}</a>`
   );
 }
 
@@ -84,4 +85,4 @@ function _formatTimestamp(timestamp) {
   }
 }
 
-export {createBloom};
+export { createBloom };
