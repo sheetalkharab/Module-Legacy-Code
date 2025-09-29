@@ -28,7 +28,7 @@ async function handleBloomSubmit(event) {
   const content = textarea.value.trim();
   const charMaxLength = 280;
   if (content.length > charMaxLength) {
-    alert(`Bloom content must not be ${charMaxLength} characters.`);
+    alert(`Bloom content must be 280 characters or less.`);
     return;
   }
 
