@@ -245,3 +245,18 @@ def verify_request_fields(names_to_types: Dict[str, type]) -> Union[Response, No
                 )
             )
     return None
+
+@jwt_required()
+def do_unfollow(username):
+    current_user = get_current_user()
+    target_user = get_user(username)
+    if target_user is None:
+        return make_response(
+            ({"success": False, "message": f"Cannot unfollow {username} - user does not exist"}, 404)
+        )
+
+    from data.follows import unfollow
+    unfollow(current_user, target_user)
+
+    return jsonify({"success": True})
+
