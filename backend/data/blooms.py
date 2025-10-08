@@ -13,6 +13,10 @@ class Bloom:
     sender: User
     content: str
     sent_timestamp: datetime.datetime
+    type:str= "bloom"
+    original_bloom_id:Optional[int] = None
+    rebloomed_by: Optional[User] = None
+
 
 
 def add_bloom(*, sender: User, content: str) -> Bloom:
@@ -37,13 +41,13 @@ def add_bloom(*, sender: User, content: str) -> Bloom:
             )
 
 
+
 def get_blooms_for_user(
     username: str, *, before: Optional[int] = None, limit: Optional[int] = None
 ) -> List[Bloom]:
     with db_cursor() as cur:
-        kwargs = {
-            "sender_username": username,
-        }
+        kwargs = {"sender_username": username}
+
         if before is not None:
             before_clause = "AND send_timestamp < %(before_limit)s"
             kwargs["before_limit"] = before
@@ -53,48 +57,59 @@ def get_blooms_for_user(
         limit_clause = make_limit_clause(limit, kwargs)
 
         cur.execute(
-            f"""SELECT
-              blooms.id, users.username, content, send_timestamp
-            FROM
-              blooms INNER JOIN users ON users.id = blooms.sender_id
-            WHERE
-              username = %(sender_username)s
-              {before_clause}
+            f"""
+            SELECT
+                blooms.id,
+                users.username,
+                blooms.content,
+                blooms.send_timestamp,
+                blooms.type,
+                blooms.original_bloom_id
+            FROM blooms
+            INNER JOIN users ON users.id = blooms.sender_id
+            WHERE username = %(sender_username)s
+            {before_clause}
             ORDER BY send_timestamp DESC
             {limit_clause}
             """,
             kwargs,
         )
+
         rows = cur.fetchall()
         blooms = []
         for row in rows:
-            bloom_id, sender_username, content, timestamp = row
+            bloom_id, sender_username, content, timestamp, type_, original_id = row
             blooms.append(
                 Bloom(
                     id=bloom_id,
                     sender=sender_username,
                     content=content,
                     sent_timestamp=timestamp,
+                    type=type_,
+                    original_bloom_id=original_id,
                 )
             )
     return blooms
 
 
+
 def get_bloom(bloom_id: int) -> Optional[Bloom]:
     with db_cursor() as cur:
         cur.execute(
-            "SELECT blooms.id, users.username, content, send_timestamp FROM blooms INNER JOIN users ON users.id = blooms.sender_id WHERE blooms.id = %s",
+            "SELECT blooms.id, users.username, content, send_timestamp, type, original_bloom_id FROM blooms INNER JOIN users ON users.id = blooms.sender_id WHERE blooms.id = %s",
             (bloom_id,),
         )
         row = cur.fetchone()
         if row is None:
             return None
-        bloom_id, sender_username, content, timestamp = row
+        bloom_id, sender_username, content, timestamp, type_, original_id = row
         return Bloom(
             id=bloom_id,
             sender=sender_username,
             content=content,
             sent_timestamp=timestamp,
+            type=type_,
+            original_bloom_id=original_id,
         )
 
 
@@ -140,3 +155,32 @@ def make_limit_clause(limit: Optional[int], kwargs: Dict[Any, Any]) -> str:
     else:
         limit_clause = ""
     return limit_clause
+
+def add_rebloom(*, sender:User, original_bloom_id: int)-> Bloom:
+    now = datetime.datetime.now(tz=datetime.UTC)
+    rebloom_id= int(now.timestamp()* 1000000)
+    with db_cursor() as cur:
+        # Insert rebloom
+        cur.execute(
+            """INSERT INTO blooms (id, sender_id, content, send_timestamp, type, original_bloom_id)
+               VALUES (%(rebloom_id)s, %(sender_id)s, %(content)s, %(timestamp)s, 'rebloom', %(original_bloom_id)s)""",
+            dict(
+                rebloom_id=rebloom_id,
+                sender_id=sender.id,
+                content="",  # rebloom doesn’t need its own text
+                timestamp=now,
+                original_bloom_id=original_bloom_id,
+            ),
+        )
+    return get_bloom(rebloom_id)
+
+def bloom_to_dict(bloom: Bloom) -> Dict[str, Any]:
+    return {
+        "id": bloom.id,
+        "sender": bloom.sender if isinstance(bloom.sender, str) else bloom.sender.username,
+        "content": bloom.content,
+        "sent_timestamp": bloom.sent_timestamp.isoformat(),
+        "type": bloom.type,
+        "original_bloom_id": bloom.original_bloom_id,
+    }
+
