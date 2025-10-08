@@ -254,6 +254,35 @@ dialog {
   color: var(--error);
 }
 
+/* REBLOOM BUTTON */
+.rebloom-button {
+  font: 600 90% monospace, system-ui;
+  background-color: var(--paper);
+  color: var(--brand);
+  border: 0.5px solid var(--brand);
+  border-radius: var(--pill);
+  box-shadow: 2px 3px var(--brand);
+  padding: calc(var(--space) / 4) calc(var(--space));
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: calc(var(--space) / 3);
+  align-self: start;
+}
+
+.rebloom-button:hover,
+.rebloom-button:focus {
+  background-color: var(--brand);
+  color: var(--paper);
+  box-shadow: 0 0 var(--accent);
+  border-color: var(--brand);
+}
+
+.rebloom-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 @keyframes fade {
   from {
     opacity: 0%;
