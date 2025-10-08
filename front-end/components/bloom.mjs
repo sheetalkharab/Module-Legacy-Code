@@ -1,3 +1,4 @@
+import { apiService } from "../lib/api.mjs";
 /**
  * Create a bloom component
  * @param {string} template - The ID of the template to clone
@@ -26,10 +27,66 @@ const createBloom = (template, bloom) => {
   bloomUsername.textContent = bloom.sender;
   bloomTime.textContent = _formatTimestamp(bloom.sent_timestamp);
   bloomTimeLink.setAttribute("href", `/bloom/${bloom.id}`);
-  bloomContent.replaceChildren(
-    ...bloomParser.parseFromString(_formatHashtags(bloom.content), "text/html")
-      .body.childNodes
-  );
+
+  if (bloom.type === "rebloom" && bloom.original_bloom_id) {
+    if (!window._bloomCache) window._bloomCache = {};
+
+    const cached = window._bloomCache[bloom.original_bloom_id];
+    if (cached) {
+      bloomContent.innerHTML = `
+       Reblooomed <strong>@${cached.sender}</strong><br>
+      <em>${cached.content}</em>
+    `;
+    } else {
+      apiService
+        .getBloom(bloom.original_bloom_id)
+        .then((original) => {
+          window._bloomCache[bloom.original_bloom_id] = original;
+          bloomContent.innerHTML = `
+           Reblooomed <strong>@${original.sender}</strong><br>
+          <em>${original.content}</em>
+        `;
+        })
+        .catch(() => {
+          bloomContent.textContent = " Rebloom (original not found)";
+        });
+    }
+  } else {
+    bloomContent.replaceChildren(
+      ...bloomParser.parseFromString(
+        _formatHashtags(bloom.content),
+        "text/html"
+      ).body.childNodes
+    );
+  }
+
+  // --- Add a Rebloom button ---
+  const rebloomButton = document.createElement("button");
+  rebloomButton.textContent = " Rebloom";
+  rebloomButton.classList.add("rebloom-button");
+  rebloomButton.addEventListener("click", async () => {
+    try {
+      rebloomButton.disabled = true;
+      rebloomButton.textContent = "Reblooming...";
+      const result = await apiService.rebloomBloom(bloom.id);
+
+      if (result.success) {
+        rebloomButton.textContent = "Rebloomed!";
+      } else {
+        alert("Rebloom failed");
+        rebloomButton.textContent = " Rebloom";
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to rebloom.");
+      rebloomButton.textContent = " Rebloom";
+    } finally {
+      rebloomButton.disabled = false;
+    }
+  });
+
+  // Add the button to the bloom card (e.g., at the bottom)
+  bloomArticle.appendChild(rebloomButton);
 
   return bloomFrag;
 };
