@@ -1,4 +1,4 @@
-import { renderOne, renderEach, destroy } from "../lib/render.mjs";
+import {renderOne, renderEach, destroy} from "../lib/render.mjs";
 import {
   state,
   apiService,
@@ -7,19 +7,17 @@ import {
   getTimelineContainer,
   getHeadingContainer,
 } from "../index.mjs";
-import { createLogin, handleLogin } from "../components/login.mjs";
-import { createLogout, handleLogout } from "../components/logout.mjs";
-import { createBloom } from "../components/bloom.mjs";
-import { createHeading } from "../components/heading.mjs";
+import {createLogin, handleLogin} from "../components/login.mjs";
+import {createLogout, handleLogout} from "../components/logout.mjs";
+import {createBloom} from "../components/bloom.mjs";
+import {createHeading} from "../components/heading.mjs";
 
 // Hashtag view: show all tweets containing this tag
 
 function hashtagView(hashtag) {
-  const formattedHashtag = hashtag.startsWith("#") ? hashtag : `#${hashtag}`;
   destroy();
-  if (formattedHashtag !== state.currentHashtag) {
-    apiService.getBloomsByHashtag(hashtag);
-  }
+
+  apiService.getBloomsByHashtag(hashtag);
 
   renderOne(
     state.isLoggedIn,
@@ -54,4 +52,4 @@ function hashtagView(hashtag) {
   );
 }
 
-export { hashtagView };
+export {hashtagView};

@@ -1,4 +1,4 @@
-import { apiService } from "../index.mjs";
+import {apiService} from "../index.mjs";
 
 /**
  * Create a bloom form component
@@ -26,11 +26,6 @@ async function handleBloomSubmit(event) {
   const originalText = submitButton.textContent;
   const textarea = form.querySelector("textarea");
   const content = textarea.value.trim();
-  const charMaxLength = 280;
-  if (content.length > charMaxLength) {
-    alert(`Bloom content must be 280 characters or less.`);
-    return;
-  }
 
   try {
     // Make form inert while we call the back end
@@ -60,4 +55,4 @@ function handleTyping(event) {
   counter.textContent = `${textarea.value.length} / ${maxLength}`;
 }
 
-export { createBloomForm, handleBloomSubmit, handleTyping };
+export {createBloomForm, handleBloomSubmit, handleTyping};
