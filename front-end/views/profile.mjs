@@ -1,4 +1,4 @@
-import {renderEach, renderOne, destroy} from "../lib/render.mjs";
+import { renderEach, renderOne, destroy } from "../lib/render.mjs";
 import {
   apiService,
   state,
@@ -7,10 +7,10 @@ import {
   getProfileContainer,
   getTimelineContainer,
 } from "../index.mjs";
-import {createLogin, handleLogin} from "../components/login.mjs";
-import {createLogout, handleLogout} from "../components/logout.mjs";
-import {createProfile, handleFollow} from "../components/profile.mjs";
-import {createBloom} from "../components/bloom.mjs";
+import { createLogin, handleLogin } from "../components/login.mjs";
+import { createLogout, handleLogout } from "../components/logout.mjs";
+import { createProfile, handleFollow } from "../components/profile.mjs";
+import { createBloom } from "../components/bloom.mjs";
 
 // Profile view - just this person's blooms and their profile
 function profileView(username) {
@@ -27,7 +27,7 @@ function profileView(username) {
     state.isLoggedIn,
     getLogoutContainer(),
     "logout-template",
-    createLogout
+    createLogout,
   );
   document
     .querySelector("[data-action='logout']")
@@ -36,11 +36,11 @@ function profileView(username) {
     state.isLoggedIn,
     getLoginContainer(),
     "login-template",
-    createLogin
+    createLogin,
   );
   document
-    .querySelector("[data-action='login']")
-    ?.addEventListener("click", handleLogin);
+    .querySelector("[data-form='login']")
+    ?.addEventListener("submit", handleLogin);
 
   const profileData = state.profiles.find((p) => p.username === username);
   if (profileData) {
@@ -52,15 +52,15 @@ function profileView(username) {
       },
       getProfileContainer(),
       "profile-template",
-      createProfile
+      createProfile,
     );
     renderEach(
       profileData.recent_blooms || [],
       getTimelineContainer(),
       "bloom-template",
-      createBloom
+      createBloom,
     );
   }
 }
 
-export {profileView};
+export { profileView };
