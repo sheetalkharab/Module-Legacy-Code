@@ -14,7 +14,6 @@ import { apiService } from "../lib/api.mjs";
 const createBloom = (template, bloom) => {
   if (!bloom) return;
   const bloomFrag = document.getElementById(template).content.cloneNode(true);
-  const bloomParser = new DOMParser();
 
   const bloomArticle = bloomFrag.querySelector("[data-bloom]");
   const bloomUsername = bloomFrag.querySelector("[data-username]");
@@ -33,31 +32,58 @@ const createBloom = (template, bloom) => {
 
     const cached = window._bloomCache[bloom.original_bloom_id];
     if (cached) {
-      bloomContent.innerHTML = `
-       Reblooomed <strong>@${cached.sender}</strong><br>
-      <em>${cached.content}</em>
-    `;
+      bloomContent.replaceChildren();
+
+      const strong = document.createElement("strong");
+      strong.textContent = `@${cached.sender}`;
+
+      const em = document.createElement("em");
+      em.textContent = cached.content;
+
+      bloomContent.append(
+        "Rebloomed ",
+        strong,
+        document.createElement("br"),
+        em,
+      );
     } else {
       apiService
         .getBloom(bloom.original_bloom_id)
         .then((original) => {
           window._bloomCache[bloom.original_bloom_id] = original;
-          bloomContent.innerHTML = `
-           Reblooomed <strong>@${original.sender}</strong><br>
-          <em>${original.content}</em>
-        `;
+          bloomContent.replaceChildren();
+
+          const strong = document.createElement("strong");
+          strong.textContent = `@${original.sender}`;
+
+          const em = document.createElement("em");
+          em.textContent = original.content;
+
+          bloomContent.append(
+            "Rebloomed ",
+            strong,
+            document.createElement("br"),
+            em,
+          );
         })
         .catch(() => {
           bloomContent.textContent = " Rebloom (original not found)";
         });
     }
   } else {
-    bloomContent.replaceChildren(
-      ...bloomParser.parseFromString(
-        _formatHashtags(bloom.content),
-        "text/html"
-      ).body.childNodes
-    );
+    bloomContent.replaceChildren();
+    const parts = bloom.content.split(/(\B#[^#]+)/g);
+
+    for (const part of parts) {
+      if (part.startsWith("#")) {
+        const link = document.createElement("a");
+        link.href = `/hashtag/${part.slice(1)}`;
+        link.textContent = part;
+        bloomContent.appendChild(link);
+      } else {
+        bloomContent.appendChild(document.createTextNode(part));
+      }
+    }
   }
 
   // --- Add a Rebloom button ---
@@ -73,12 +99,9 @@ const createBloom = (template, bloom) => {
       if (result.success) {
         rebloomButton.textContent = "Rebloomed!";
       } else {
-        alert("Rebloom failed");
         rebloomButton.textContent = " Rebloom";
       }
     } catch (err) {
-      console.error(err);
-      alert("Failed to rebloom.");
       rebloomButton.textContent = " Rebloom";
     } finally {
       rebloomButton.disabled = false;
@@ -90,14 +113,6 @@ const createBloom = (template, bloom) => {
 
   return bloomFrag;
 };
-
-function _formatHashtags(text) {
-  if (!text) return text;
-  return text.replace(
-    /\B#[^#]+/g,
-    (match) => `<a href="/hashtag/${match.slice(1)}">${match}</a>`
-  );
-}
 
 function _formatTimestamp(timestamp) {
   if (!timestamp) return "";
@@ -141,4 +156,4 @@ function _formatTimestamp(timestamp) {
   }
 }
 
-export {createBloom};
+export { createBloom };

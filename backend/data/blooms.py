@@ -4,8 +4,13 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from data.connection import db_cursor
-from data.users import User
+from data.users import User, get_user
 
+
+@dataclass
+class RebloomDetails:
+    original_bloom_id: int
+    rebloomed_by: User
 
 @dataclass
 class Bloom:
@@ -14,8 +19,13 @@ class Bloom:
     content: str
     sent_timestamp: datetime.datetime
     type:str= "bloom"
-    original_bloom_id:Optional[int] = None
-    rebloomed_by: Optional[User] = None
+    rebloom_details: Optional[RebloomDetails] = None
+
+
+def generate_bloom_id() -> int:
+    """Generate a unique bloom/rebloom ID based on current timestamp."""
+    now = datetime.datetime.now(tz=datetime.UTC)
+    return int(now.timestamp() * 1_000_000)    
 
 
 
@@ -23,7 +33,7 @@ def add_bloom(*, sender: User, content: str) -> Bloom:
     hashtags = [word[1:] for word in content.split(" ") if word.startswith("#")]
 
     now = datetime.datetime.now(tz=datetime.UTC)
-    bloom_id = int(now.timestamp() * 1000000)
+    bloom_id =  generate_bloom_id()
     with db_cursor() as cur:
         cur.execute(
             "INSERT INTO blooms (id, sender_id, content, send_timestamp) VALUES (%(bloom_id)s, %(sender_id)s, %(content)s, %(timestamp)s)",
@@ -79,14 +89,17 @@ def get_blooms_for_user(
         blooms = []
         for row in rows:
             bloom_id, sender_username, content, timestamp, type_, original_id = row
+            sender_user = get_user(sender_username)
+            rebloom_details = RebloomDetails(original_bloom_id=original_id, rebloomed_by=sender_user) if original_id else None
             blooms.append(
                 Bloom(
                     id=bloom_id,
-                    sender=sender_username,
+                    sender=sender_user,
                     content=content,
                     sent_timestamp=timestamp,
                     type=type_,
-                    original_bloom_id=original_id,
+                    rebloom_details=rebloom_details,
+                    
                 )
             )
     return blooms
@@ -103,13 +116,16 @@ def get_bloom(bloom_id: int) -> Optional[Bloom]:
         if row is None:
             return None
         bloom_id, sender_username, content, timestamp, type_, original_id = row
+        sender_user = get_user(sender_username)
+        rebloom_details = RebloomDetails(original_bloom_id=original_id, rebloomed_by=sender_user) if original_id else None
         return Bloom(
             id=bloom_id,
-            sender=sender_username,
+            sender=sender_user,
             content=content,
             sent_timestamp=timestamp,
             type=type_,
-            original_bloom_id=original_id,
+            rebloom_details=rebloom_details,
+           
         )
 
 
@@ -137,12 +153,15 @@ def get_blooms_with_hashtag(
         blooms = []
         for row in rows:
             bloom_id, sender_username, content, timestamp = row
+            sender_user = get_user(sender_username)
+            
             blooms.append(
                 Bloom(
                     id=bloom_id,
-                    sender=sender_username,
+                    sender=sender_user,
                     content=content,
                     sent_timestamp=timestamp,
+                    
                 )
             )
     return blooms
@@ -156,9 +175,11 @@ def make_limit_clause(limit: Optional[int], kwargs: Dict[Any, Any]) -> str:
         limit_clause = ""
     return limit_clause
 
+
+
 def add_rebloom(*, sender:User, original_bloom_id: int)-> Bloom:
     now = datetime.datetime.now(tz=datetime.UTC)
-    rebloom_id= int(now.timestamp()* 1000000)
+    rebloom_id= generate_bloom_id()
     with db_cursor() as cur:
         # Insert rebloom
         cur.execute(
@@ -172,15 +193,28 @@ def add_rebloom(*, sender:User, original_bloom_id: int)-> Bloom:
                 original_bloom_id=original_bloom_id,
             ),
         )
-    return get_bloom(rebloom_id)
+    bloom = get_bloom(rebloom_id)
+    if bloom:
+        bloom.rebloom_details = RebloomDetails(
+            original_bloom_id=original_bloom_id,
+            rebloomed_by=sender
+        )
+    return bloom
 
 def bloom_to_dict(bloom: Bloom) -> Dict[str, Any]:
-    return {
+    data={
         "id": bloom.id,
-        "sender": bloom.sender if isinstance(bloom.sender, str) else bloom.sender.username,
+        "sender": bloom.sender.username,
         "content": bloom.content,
         "sent_timestamp": bloom.sent_timestamp.isoformat(),
         "type": bloom.type,
-        "original_bloom_id": bloom.original_bloom_id,
+        
     }
+    if bloom.rebloom_details:
+        data["original_bloom_id"] = bloom.rebloom_details.original_bloom_id
+        data["rebloom_details"] = {
+            "original_bloom_id": bloom.rebloom_details.original_bloom_id,
+            "rebloomed_by": bloom.rebloom_details.rebloomed_by.username,
+        }
+    return data
 
