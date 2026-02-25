@@ -188,7 +188,7 @@ def add_rebloom(*, sender:User, original_bloom_id: int)-> Bloom:
             dict(
                 rebloom_id=rebloom_id,
                 sender_id=sender.id,
-                content="",  # rebloom doesn’t need its own text
+                content=None,  # rebloom doesn’t need its own text
                 timestamp=now,
                 original_bloom_id=original_bloom_id,
             ),
@@ -217,4 +217,3 @@ def bloom_to_dict(bloom: Bloom) -> Dict[str, Any]:
             "rebloomed_by": bloom.rebloom_details.rebloomed_by.username,
         }
     return data
-
