@@ -203,13 +203,13 @@ def home_timeline():
         sorted(all_blooms, key=lambda bloom: bloom.sent_timestamp, reverse=True)
     )
 
-    return jsonify(sorted_blooms)
+    return jsonify([blooms.bloom_to_dict(b) for b in sorted_blooms])
 
 
 def user_blooms(profile_username):
     user_blooms = blooms.get_blooms_for_user(profile_username)
     user_blooms.reverse()
-    return jsonify(user_blooms)
+    return jsonify([blooms.bloom_to_dict(b) for b in user_blooms])
 
 
 @jwt_required()
@@ -229,7 +229,7 @@ def suggested_follows(limit_str):
 
 
 def hashtag(hashtag):
-    return jsonify(blooms.get_blooms_with_hashtag(hashtag))
+    return jsonify([blooms.bloom_to_dict(b) for b in blooms.get_blooms_with_hashtag(hashtag)])
 
 
 def verify_request_fields(names_to_types: Dict[str, type]) -> Union[Response, None]:
