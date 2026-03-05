@@ -11,6 +11,7 @@ def fail(message: str) -> None:
 
 
 def post(endpoint: str, data: Dict[str, Any], access_token: Optional[str] = None):
+    """Helper for POST requests that are expected to succeed with status 200."""
     headers = {
         "Content-Type": "application/json",
     }
@@ -27,11 +28,49 @@ def post(endpoint: str, data: Dict[str, Any], access_token: Optional[str] = None
 
 
 def create_user(username: str, password: str) -> str:
-    """create_user creates a user and returns an access token which can be used for future requests."""
-    response = post("/register", data={"username": username, "password": password})
-    if not response["success"]:
-        fail(f"Could not create user: {response}")
-    return response["token"]
+    """Create a user and return an access token.
+
+    If the user already exists, fall back to logging in instead so that
+    the populate script can be run multiple times without failing early.
+    """
+    headers = {
+        "Content-Type": "application/json",
+    }
+
+    # First, try to register the user.
+    register_response = requests.post(
+        "http://127.0.0.1:3000/register",
+        data=json.dumps({"username": username, "password": password}),
+        headers=headers,
+    )
+
+    if register_response.status_code == 200:
+        body = register_response.json()
+        if not body.get("success", False):
+            fail(f"Could not create user: {body}")
+        return body["token"]
+
+    # If the user already exists, try logging in instead.
+    try:
+        error_body = register_response.json()
+    except ValueError:
+        error_body = {}
+
+    if (
+        register_response.status_code == 400
+        and error_body.get("message") == "user already exists"
+    ):
+        login_body = post(
+            "/login", data={"username": username, "password": password}
+        )
+        if not login_body.get("success", False):
+            fail(f"Could not log in existing user {username}: {login_body}")
+        return login_body["token"]
+
+    # Any other error should still cause the script to fail clearly.
+    fail(
+        f"Got status code {register_response.status_code} from request to /register. Response body: {register_response.text}"
+    )
 
 
 def send_bloom(access_token: str, text: str) -> None:

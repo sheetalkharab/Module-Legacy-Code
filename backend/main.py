@@ -30,13 +30,13 @@ def main():
 
     app.json = CustomJsonProvider(app)
 
-    # Configure CORS to handle preflight requests
+    # Configure CORS: with credentials, browser requires a specific origin (not *)
     CORS(
         app,
         supports_credentials=True,
         resources={
             r"/*": {
-                "origins": "*",
+                "origins": ["http://localhost:8000", "http://127.0.0.1:8000"],
                 "allow_headers": ["Content-Type", "Authorization"],
                 "methods": ["GET", "POST", "OPTIONS"],
             }

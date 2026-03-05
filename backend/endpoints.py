@@ -115,7 +115,7 @@ def other_profile(profile_username):
     return jsonify(
         {
             "username": profile_username,
-            "recent_blooms": all_blooms[:10],
+            "recent_blooms": [blooms.bloom_to_dict(b) for b in all_blooms[:10]],
             "follows": get_followed_usernames(profile_user),
             "followers": list(followers),
             "is_following": current_user is not None
