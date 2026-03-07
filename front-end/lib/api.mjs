@@ -212,6 +212,27 @@ async function postBloom(content) {
   }
 }
 
+async function rebloomBloom(bloomId) {
+  try {
+    const data = await _apiRequest(`/rebloom/${bloomId}`, {
+      method: "POST",
+    });
+
+    if (data.success) {
+      // Refresh the feed that's currently visible
+      if (state.currentHashtag) {
+        await getBloomsByHashtag(state.currentHashtag);
+      } else {
+        await getBlooms();
+      }
+    }
+
+    return data;
+  } catch (error) {
+    return {success: false};
+  }
+}
+
 // ======= USER methods
 async function getProfile(username) {
   const endpoint = username ? `/profile/${username}` : "/profile";
@@ -291,6 +312,7 @@ const apiService = {
   getBloom,
   getBlooms,
   postBloom,
+  rebloomBloom,
   getBloomsByHashtag,
 
   // User methods

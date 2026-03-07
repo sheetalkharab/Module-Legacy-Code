@@ -254,6 +254,18 @@ dialog {
   color: var(--error);
 }
 
+/* Rebloom count and original time on bloom cards */
+.bloom__rebloom-count {
+  font-size: 0.85em;
+  color: var(--ink-muted, #666);
+  margin: 0.25em 0 0;
+}
+
+.bloom__original-time {
+  font-size: 0.85em;
+  color: var(--ink-muted, #666);
+}
+
 /* REBLOOM BUTTON */
 .rebloom-button {
   font: 600 90% monospace, system-ui;

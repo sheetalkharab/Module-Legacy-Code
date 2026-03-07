@@ -24,6 +24,7 @@ const createBloom = (template, bloom) => {
   bloomArticle.setAttribute("data-bloom-id", bloom.id);
   bloomUsername.setAttribute("href", `/profile/${bloom.sender}`);
   bloomUsername.textContent = bloom.sender;
+  // For reblooms: show rebloom time as main time; original time can be shown in content area
   bloomTime.textContent = _formatTimestamp(bloom.sent_timestamp);
   bloomTimeLink.setAttribute("href", `/bloom/${bloom.id}`);
 
@@ -31,40 +32,36 @@ const createBloom = (template, bloom) => {
     if (!window._bloomCache) window._bloomCache = {};
 
     const cached = window._bloomCache[bloom.original_bloom_id];
-    if (cached) {
+    const renderRebloomContent = (original) => {
       bloomContent.replaceChildren();
-
       const strong = document.createElement("strong");
-      strong.textContent = `@${cached.sender}`;
-
+      strong.textContent = `@${original.sender}`;
       const em = document.createElement("em");
-      em.textContent = cached.content;
-
+      em.textContent = original.content;
       bloomContent.append(
         "Rebloomed ",
         strong,
         document.createElement("br"),
         em,
       );
+      // Show original timestamp so it's clear when the original was posted
+      if (original.sent_timestamp) {
+        const origTime = document.createElement("span");
+        origTime.className = "bloom__original-time";
+        origTime.textContent = `Original: ${_formatTimestamp(original.sent_timestamp)}`;
+        bloomContent.appendChild(document.createElement("br"));
+        bloomContent.appendChild(origTime);
+      }
+    };
+
+    if (cached) {
+      renderRebloomContent(cached);
     } else {
       apiService
         .getBloom(bloom.original_bloom_id)
         .then((original) => {
           window._bloomCache[bloom.original_bloom_id] = original;
-          bloomContent.replaceChildren();
-
-          const strong = document.createElement("strong");
-          strong.textContent = `@${original.sender}`;
-
-          const em = document.createElement("em");
-          em.textContent = original.content;
-
-          bloomContent.append(
-            "Rebloomed ",
-            strong,
-            document.createElement("br"),
-            em,
-          );
+          renderRebloomContent(original);
         })
         .catch(() => {
           bloomContent.textContent = " Rebloom (original not found)";
@@ -84,6 +81,16 @@ const createBloom = (template, bloom) => {
         bloomContent.appendChild(document.createTextNode(part));
       }
     }
+  }
+
+  // --- Show rebloom count if this bloom has been rebloomed ---
+  const rebloomCount = bloom.rebloom_count ?? 0;
+  if (rebloomCount > 0) {
+    const countEl = document.createElement("p");
+    countEl.className = "bloom__rebloom-count";
+    countEl.textContent =
+      rebloomCount === 1 ? "1 rebloom" : `${rebloomCount} reblooms`;
+    bloomArticle.appendChild(countEl);
   }
 
   // --- Add a Rebloom button ---

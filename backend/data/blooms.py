@@ -139,12 +139,12 @@ def get_blooms_with_hashtag(
     with db_cursor() as cur:
         cur.execute(
             f"""SELECT
-              blooms.id, users.username, content, send_timestamp
+              blooms.id, users.username, blooms.content, blooms.send_timestamp, blooms.type, blooms.original_bloom_id
             FROM
               blooms INNER JOIN hashtags ON blooms.id = hashtags.bloom_id INNER JOIN users ON blooms.sender_id = users.id
             WHERE
               hashtag = %(hashtag_without_leading_hash)s
-            ORDER BY send_timestamp DESC
+            ORDER BY blooms.send_timestamp DESC
             {limit_clause}
             """,
             kwargs,
@@ -152,16 +152,17 @@ def get_blooms_with_hashtag(
         rows = cur.fetchall()
         blooms = []
         for row in rows:
-            bloom_id, sender_username, content, timestamp = row
+            bloom_id, sender_username, content, timestamp, type_, original_id = row
             sender_user = get_user(sender_username)
-            
+            rebloom_details = RebloomDetails(original_bloom_id=original_id, rebloomed_by=sender_user) if original_id else None
             blooms.append(
                 Bloom(
                     id=bloom_id,
                     sender=sender_user,
-                    content=content,
+                    content=content or "",
                     sent_timestamp=timestamp,
-                    
+                    type=type_ or "bloom",
+                    rebloom_details=rebloom_details,
                 )
             )
     return blooms
@@ -193,6 +194,12 @@ def add_rebloom(*, sender:User, original_bloom_id: int)-> Bloom:
                 original_bloom_id=original_bloom_id,
             ),
         )
+        # Copy hashtags from original so rebloom appears in hashtag search
+        cur.execute(
+            """INSERT INTO hashtags (hashtag, bloom_id)
+               SELECT hashtag, %(rebloom_id)s FROM hashtags WHERE bloom_id = %(original_bloom_id)s""",
+            dict(rebloom_id=rebloom_id, original_bloom_id=original_bloom_id),
+        )
     bloom = get_bloom(rebloom_id)
     if bloom:
         bloom.rebloom_details = RebloomDetails(
@@ -201,14 +208,25 @@ def add_rebloom(*, sender:User, original_bloom_id: int)-> Bloom:
         )
     return bloom
 
+def get_rebloom_count(bloom_id: int) -> int:
+    """Return how many times this bloom has been re-bloomed."""
+    with db_cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) FROM blooms WHERE original_bloom_id = %s",
+            (bloom_id,),
+        )
+        row = cur.fetchone()
+        return row[0] if row else 0
+
+
 def bloom_to_dict(bloom: Bloom) -> Dict[str, Any]:
-    data={
+    data = {
         "id": bloom.id,
         "sender": bloom.sender.username,
-        "content": bloom.content,
+        "content": bloom.content or "",
         "sent_timestamp": bloom.sent_timestamp.isoformat(),
         "type": bloom.type,
-        
+        "rebloom_count": get_rebloom_count(bloom.id),
     }
     if bloom.rebloom_details:
         data["original_bloom_id"] = bloom.rebloom_details.original_bloom_id
@@ -216,4 +234,8 @@ def bloom_to_dict(bloom: Bloom) -> Dict[str, Any]:
             "original_bloom_id": bloom.rebloom_details.original_bloom_id,
             "rebloomed_by": bloom.rebloom_details.rebloomed_by.username,
         }
+        # Include original bloom timestamp so UI can show "Originally X ago"
+        original = get_bloom(bloom.rebloom_details.original_bloom_id)
+        if original:
+            data["original_sent_timestamp"] = original.sent_timestamp.isoformat()
     return data
